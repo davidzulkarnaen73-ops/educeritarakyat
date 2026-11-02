@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraction Space Adventure: Mission Ratio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: white;
+            user-select: none;
+        }
+        h1, h2, h3, .font-space {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Canvas Background */
+        #starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(26, 42, 108, 0.7) 0%, rgba(177, 68, 105, 0.7) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 1.5rem;
+        }
+        /* Custom Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(0, 255, 255, 0.9); }
+        }
+        .glow-btn { animation: pulse-glow 2s infinite; }
+        
+        @keyframes pop {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes comboFire {
+            0% { text-shadow: 0 0 10px #ff0, 0 0 20px #f90, 0 0 30px #f00; transform: scale(1); }
+            50% { text-shadow: 0 0 20px #ff0, 0 0 40px #f90, 0 0 60px #f00; transform: scale(1.2); }
+            100% { text-shadow: 0 0 10px #ff0, 0 0 20px #f90, 0 0 30px #f00; transform: scale(1); }
+        }
+        .combo-text { animation: comboFire 0.5s infinite; color: white; font-weight: 900;}
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        .shake { animation: shake 0.4s; }
+
+        /* Screens */
+        .screen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; padding: 1rem; }
+        .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,255,255,0.8); }
+        
+        /* Modal Custom */
+        #custom-modal { display: none; }
+        #custom-modal.active { display: flex; }
+    </style>
+</head>
+<body>
+
+    <!-- Starfield Background -->
+    <canvas id="starfield"></canvas>
+
+    <!-- Global Header (Sound & Help) -->
+    <div class="fixed top-4 right-4 z-50 flex gap-2">
+        <button id="btn-help" class="glass p-2 rounded-full hover:bg-white/20 transition" onclick="showHelp()">❓</button>
+        <button id="btn-sound" class="glass p-2 rounded-full hover:bg-white/20 transition" onclick="toggleSound()">🔊</button>
+    </div>
+
+    <!-- 1. LOGIN SCREEN -->
+    <div id="screen-login" class="screen active">
+        <div class="glass-panel max-w-4xl w-full flex flex-col md:flex-row overflow-hidden shadow-2xl animate-pop">
+            <!-- Image Side -->
+            <div class="w-full md:w-1/2 p-6 flex justify-center items-center bg-black/20">
+                <img src="https://i.imgur.com/8KDwL7u.png" alt="Astronaut Mascot" class="max-w-full h-auto object-contain animate-float drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">
+            </div>
+            <!-- Form Side -->
+            <div class="w-full md:w-1/2 p-8 flex flex-col justify-center">
+                <h1 class="text-3xl md:text-4xl font-space text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-purple-400 mb-2">FRACTION SPACE ADVENTURE</h1>
+                <h2 class="text-lg md:text-xl font-bold text-yellow-300 mb-6">MISSION: RATIO</h2>
+                <p class="text-sm text-gray-200 mb-6">Misi Menaklukkan Galaksi Rasio dan Perbandingan!</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Nama Kadet (Siswa)</label>
+                        <input type="text" id="input-nama" class="w-full p-3 rounded-lg bg-white/10 border border-white/30 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400" placeholder="Masukkan namamu...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Nomor Absen</label>
+                        <input type="number" id="input-absen" class="w-full p-3 rounded-lg bg-white/10 border border-white/30 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400" placeholder="Contoh: 12">
+                    </div>
+                    <button onclick="startGame()" class="w-full py-4 mt-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-space font-bold rounded-lg shadow-[0_0_15px_rgba(0,255,255,0.4)] transition-all transform hover:scale-105 active:scale-95 text-lg">
+                        🚀 MULAI PETUALANGAN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. GALAXY MAP (HOME) SCREEN -->
+    <div id="screen-map" class="screen">
+        <div class="w-full max-w-5xl">
+            <!-- Dashboard Info -->
+            <div class="glass p-4 mb-8 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-10 animate-pop">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-900/50 p-2 rounded-full border border-blue-400/50 text-2xl">👨‍🚀</div>
+                    <div>
+                        <div id="ui-nama" class="font-bold text-cyan-300">Kadet</div>
+                        <div id="ui-absen" class="text-xs text-gray-300">Absen: -</div>
+                    </div>
+                </div>
+                <div class="flex gap-6 items-center">
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400 font-space">SKOR TOTAL</div>
+                        <div id="ui-skor-map" class="font-bold text-yellow-400 text-xl font-space">0</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400 font-space">NYAWA</div>
+                        <div id="ui-nyawa-map" class="text-red-400 text-xl tracking-widest">❤️❤️❤️</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-space text-white mb-2">PETA GALAKSI RASIO</h2>
+                <p class="text-gray-300">Selesaikan planet secara berurutan untuk mencapai Boss!</p>
+            </div>
+
+            <!-- Map Layout -->
+            <div class="relative w-full h-[60vh] min-h-[400px] flex items-center justify-center">
+                <!-- SVG Path connecting planets (Simulated with absolute divs for simplicity & responsiveness) -->
+                
+                <div class="absolute inset-0 flex flex-wrap justify-center items-center gap-8 md:gap-16 p-4">
+                    <!-- Planets generated by JS -->
+                    <div id="planet-container" class="flex flex-wrap justify-center items-center gap-6 w-full relative"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. GAMEPLAY SCREEN -->
+    <div id="screen-game" class="screen">
+        <div class="w-full max-w-4xl flex flex-col h-full">
+            <!-- Game Header -->
+            <div class="glass p-4 mb-4 flex justify-between items-center shrink-0">
+                <button onclick="goHome()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-300 border border-red-500/50 rounded-lg font-bold flex items-center gap-2 transition">
+                    🏠 <span class="hidden sm:inline">KEMBALI</span>
+                </button>
+                <div class="flex gap-6 items-center">
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400 font-space">SKOR</div>
+                        <div id="ui-skor-game" class="font-bold text-yellow-400 text-xl font-space">0</div>
+                    </div>
+                    <div id="combo-display" class="hidden text-xl font-space italic">🔥x2</div>
+                    <div class="text-center">
+                        <div class="text-xs text-gray-400 font-space">NYAWA</div>
+                        <div id="ui-nyawa-game" class="text-red-400 text-xl tracking-widest">❤️❤️❤️</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Boss HP (Hidden unless Boss Level) -->
+            <div id="boss-ui" class="hidden mb-4 glass p-4 text-center">
+                <div class="text-2xl mb-2">🐲 RATIO DRAGON 🐲</div>
+                <div class="w-full bg-gray-700 h-6 rounded-full overflow-hidden border border-gray-500 relative">
+                    <div id="boss-hp-bar" class="bg-gradient-to-r from-red-600 to-red-400 h-full w-full transition-all duration-300"></div>
+                    <div id="boss-hp-text" class="absolute inset-0 flex items-center justify-center font-bold text-xs drop-shadow-md">HP: 100%</div>
+                </div>
+            </div>
+
+            <!-- Timer Bar -->
+            <div class="w-full bg-gray-800 h-3 rounded-full mb-6 overflow-hidden shrink-0 border border-gray-600">
+                <div id="timer-bar" class="h-full bg-green-400 w-full transition-all duration-1000 linear"></div>
+            </div>
+
+            <!-- Question Area -->
+            <div class="glass-panel flex-1 flex flex-col p-6 overflow-y-auto mb-4 relative">
+                <div id="level-title" class="text-center text-cyan-300 font-space text-sm mb-4">PLANET 1: KONSEP RASIO (Soal 1/6)</div>
+                <div id="question-text" class="text-xl md:text-2xl text-center font-semibold mb-8 flex-1 flex items-center justify-center leading-relaxed">
+                    <!-- Pertanyaan -->
+                </div>
+                
+                <!-- Answer Area (Dynamic) -->
+                <div id="answer-area" class="w-full max-w-2xl mx-auto pb-4">
+                    <!-- Tombol Pilihan Ganda / Input Text di-generate oleh JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. RESULT SCREEN -->
+    <div id="screen-result" class="screen">
+        <div class="glass-panel max-w-2xl w-full p-8 text-center animate-pop">
+            <h1 class="text-4xl font-space text-yellow-400 mb-2">MISI SELESAI!</h1>
+            <h2 id="result-predikat" class="text-2xl text-cyan-300 font-bold mb-6">🏆 GALAXY MASTER</h2>
+            
+            <div class="grid grid-cols-2 gap-4 mb-8 text-left glass p-4 rounded-xl">
+                <div>Kadet: <span id="res-nama" class="font-bold text-white"></span></div>
+                <div>No. Absen: <span id="res-absen" class="font-bold text-white"></span></div>
+                <div>Total Skor: <span id="res-skor" class="font-bold text-yellow-400 text-xl font-space"></span></div>
+                <div>Akurasi: <span id="res-akurasi" class="font-bold text-green-400 text-xl"></span></div>
+                <div class="col-span-2 text-sm text-gray-300 mt-2">
+                    Benar: <span id="res-benar" class="text-green-400">0</span> | 
+                    Salah/Waktu Habis: <span id="res-salah" class="text-red-400">0</span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="exportPDF()" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2">
+                    📄 CETAK RAPOR (PDF)
+                </button>
+                <button onclick="resetGame(true)" class="px-6 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-bold shadow-lg transition">
+                    🔄 MAIN LAGI
+                </button>
+            </div>
+            <div id="pdf-loading" class="hidden mt-4 text-sm text-cyan-300 animate-pulse">Sedang membuat PDF...</div>
+        </div>
+    </div>
+
+    <!-- CUSTOM MODAL -->
+    <div id="custom-modal" class="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel max-w-md w-full p-6 text-center animate-pop">
+            <h3 id="modal-title" class="text-xl font-space mb-2 text-cyan-300">Pesan</h3>
+            <p id="modal-desc" class="mb-6 text-gray-200">Deskripsi pesan.</p>
+            <button id="modal-btn" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-white font-bold transition">OK</button>
+        </div>
+    </div>
+
+<script>
+/* ==========================================
+   1. CORE STATE & DATA
+   ========================================== */
+let player = {
+    nama: "",
+    absen: "",
+    skor: 0,
+    nyawa: 3,
+    levelUnlocked: 1,
+    combo: 0,
+    benar: 0,
+    salah: 0,
+    riwayat: [] // Untuk PDF report
+};
+
+let gameState = {
+    currentLevel: 1,
+    currentQuestion: 0,
+    timer: 30,
+    timerInterval: null,
+    isAnswering: false,
+    soundOn: true
+};
+
+const MAX_WAKTU = 30;
+const SKOR_BENAR = 100;
+
+// Data Planet
+const planets = [
+    { id: 1, name: "Konsep Rasio", color: "from-blue-400 to-blue-700", icon: "🌍", desc: "Dasar penulisan rasio a:b" },
+    { id: 2, name: "Tabel Rasio", color: "from-yellow-400 to-orange-600", icon: "🪐", desc: "Mencari rasio senilai" },
+    { id: 3, name: "Rasio Satuan", color: "from-cyan-300 to-teal-600", icon: "🔵", desc: "Nilai per satu satuan (Unit Rate)" },
+    { id: 4, name: "Bagian & Keseluruhan", color: "from-pink-400 to-purple-700", icon: "🌟", desc: "Rasio sebagian terhadap total" },
+    { id: 5, name: "Boss Ratio Dragon", color: "from-red-500 to-red-900", icon: "👾", desc: "Ujian akhir rasio!" }
+];
+
+// Bank Soal (30 Soal)
+// Tipe: "mc" (Multiple Choice), "input" (Text Input dengan Smart Eval)
+const questionBank = {
+    1: [ // L1: Konsep
+        { q: "Di sebuah stasiun luar angkasa terdapat 3 Roket dan 5 Satelit. Berapa rasio Roket terhadap Satelit?", type: "mc", options: ["3 : 5", "5 : 3", "3 : 8", "8 : 5"], answer: "3 : 5" },
+        { q: "Ada 4 Alien Hijau dan 7 Alien Biru. Tuliskan rasio Alien Biru terhadap Alien Hijau! (Gunakan tanda titik dua :)", type: "input", expected: "7:4" },
+        { q: "Rasio dapat dituliskan dalam bentuk pecahan. Jika rasio Astronaut terhadap Robot adalah 2 banding 5, bagaimana bentuk pecahannya?", type: "mc", options: ["5/2", "2/5", "2/7", "7/2"], answer: "2/5" },
+        { q: "Terdapat 10 Bintang dan 15 Komet. Tuliskan rasio Bintang terhadap Komet! (Cukup angkanya)", type: "input", expected: "10:15" }, // Akan dieval pintar, 2:3 jg benar
+        { q: "Manakah pernyataan yang BENAR tentang rasio 4 : 1 untuk Roda terhadap Mobil?", type: "mc", options: ["Ada 1 Roda untuk 4 Mobil", "Ada 4 Roda untuk setiap 1 Mobil", "Total ada 5 kendaraan", "Mobil lebih banyak dari Roda"], answer: "Ada 4 Roda untuk setiap 1 Mobil" },
+        { q: "Sebuah peta galaksi menunjukkan rasio Planet Merah terhadap Planet Biru adalah 5 : 2. Jika ditulis menggunakan kata 'banding', yaitu...", type: "mc", options: ["Dua banding lima", "Lima banding tujuh", "Lima banding dua", "Tujuh banding dua"], answer: "Lima banding dua" }
+    ],
+    2: [ // L2: Tabel/Ekuivalen
+        { q: "Rasio yang senilai dengan 2 : 3 adalah...", type: "mc", options: ["4 : 5", "4 : 6", "6 : 8", "3 : 2"], answer: "4 : 6" },
+        { q: "Lengkapi tabel rasio ekuivalen: Jika 3 : 5 = 9 : X, berapakah nilai X?", type: "input", expected: "15" },
+        { q: "Pecahan 4/12 senilai dengan rasio paling sederhana, yaitu...", type: "mc", options: ["1 : 3", "1 : 4", "2 : 6", "1 : 12"], answer: "1 : 3" },
+        { q: "Jika harga 2 tiket pesawat luar angkasa adalah 10 koin, berapa harga 6 tiket? (Gunakan konsep rasio ekuivalen 2:10 = 6:?)", type: "input", expected: "30" },
+        { q: "Manakah pasangan rasio yang TIDAK senilai?", type: "mc", options: ["1:2 dan 3:6", "4:5 dan 8:10", "2:3 dan 6:8", "10:20 dan 1:2"], answer: "2:3 dan 6:8" },
+        { q: "Bentuk paling sederhana dari rasio 15 : 25 adalah...", type: "input", expected: "3:5" }
+    ],
+    3: [ // L3: Unit Rate
+        { q: "Pesawat UFO melaju sejauh 100 km dalam 2 detik. Berapa Rasio Satuan (kecepatan per detik)?", type: "mc", options: ["200 km/detik", "50 km/detik", "100 km/detik", "25 km/detik"], answer: "50 km/detik" },
+        { q: "Harga 5 botol bahan bakar roket adalah 45 kristal. Berapa harga 1 botol? (Tulis angkanya saja)", type: "input", expected: "9" },
+        { q: "Seorang kadet menyelesaikan 12 misi dalam 3 hari. Berapa misi yang diselesaikan per harinya?", type: "mc", options: ["3 misi", "6 misi", "4 misi", "9 misi"], answer: "4 misi" },
+        { q: "Jika 4 bungkus makanan astronaut beratnya 800 gram, berapa berat 1 bungkus makanan? (Ketik angkanya saja)", type: "input", expected: "200" },
+        { q: "Mana yang lebih murah (rasio satuan terkecil)?", type: "mc", options: ["3 laser harga 30 koin", "5 laser harga 45 koin", "2 laser harga 24 koin", "1 laser harga 12 koin"], answer: "5 laser harga 45 koin" }, // 10, 9, 12, 12
+        { q: "Mesin pompa mengalirkan 150 liter oksigen dalam 5 menit. Berapa liter oksigen yang mengalir dalam 1 menit?", type: "input", expected: "30" }
+    ],
+    4: [ // L4: Bagian & Keseluruhan
+        { q: "Dalam laci pesawat terdapat 3 tang merah dan 7 tang biru. Berapa rasio tang merah terhadap SELURUH tang?", type: "mc", options: ["3 : 7", "3 : 10", "7 : 10", "10 : 3"], answer: "3 : 10" },
+        { q: "Satu tim terdiri dari 4 alien dan 6 manusia. Berapa rasio alien terhadap total anggota tim? (Tulis bentuk a:b paling sederhana)", type: "input", expected: "2:5" }, // 4:10 -> 2:5
+        { q: "Sebuah keranjang berisi buah galaksi. Rasio apel ungu terhadap seluruh buah adalah 2 : 5. Jika total buah ada 20, berapa banyak apel ungu?", type: "mc", options: ["2", "5", "8", "10"], answer: "8" },
+        { q: "Jika rasio siswa laki-laki terhadap seluruh siswa adalah 3/5, maka rasio siswa laki-laki terhadap siswa perempuan adalah...", type: "input", expected: "3:2" },
+        { q: "Diketahui rasio bagian A terhadap keseluruhan adalah 4:9. Berapakah rasio bagian B (sisanya) terhadap keseluruhan?", type: "mc", options: ["5 : 9", "4 : 5", "9 : 5", "5 : 4"], answer: "5 : 9" },
+        { q: "Total kelereng luar angkasa ada 15. Jika rasio kelereng biru terhadap kelereng merah adalah 1:2. Berapa banyak kelereng biru? (Ketik angkanya)", type: "input", expected: "5" }
+    ],
+    5: [ // L5: Boss (Word Problems)
+        { q: "[BOSS ATTACK 1] Jarak Bumi ke Mars di peta adalah 5 cm. Skala peta (Rasio) adalah 1 : 1.000.000 cm. Berapa jarak aslinya dalam km?", type: "mc", options: ["5 km", "50 km", "500 km", "5000 km"], answer: "50 km" },
+        { q: "[BOSS ATTACK 2] Perbandingan uang Astro dan Bima adalah 3:4. Jika jumlah uang mereka 70 koin, berapa koin milik Astro? (Ketik angkanya)", type: "input", expected: "30" },
+        { q: "[BOSS ATTACK 3] Resep bahan bakar: 2 liter cairan biru dicampur 3 liter cairan merah. Jika kamu punya 15 liter cairan merah, berapa cairan biru yang dibutuhkan?", type: "mc", options: ["5 liter", "10 liter", "12 liter", "20 liter"], answer: "10 liter" },
+        { q: "[BOSS ATTACK 4] Rasio umur kadet dan kapten adalah 1 : 3. Jika selisih umur mereka 24 tahun, berapa umur kapten? (Ketik angkanya)", type: "input", expected: "36" },
+        { q: "[BOSS ATTACK 5] Sebuah kapal butuh 4 baterai untuk terbang 100 mil. Berapa baterai yang dibutuhkan untuk terbang 250 mil?", type: "mc", options: ["6", "8", "10", "12"], answer: "10" },
+        { q: "[FINAL STRIKE] Mesin A mencetak 5 baut dalam 2 detik. Mesin B mencetak 12 baut dalam 4 detik. Manakah yang rasio satuannya (kecepatan) LEBIH CEPAT? (Ketik 'A' atau 'B')", type: "input", expected: "B" } // A=2.5, B=3
+    ]
+};
+
+/* ==========================================
+   2. AUDIO SYSTEM (Web Audio API)
+   ========================================== */
+const AudioSys = {
+    ctx: null,
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        }
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    play(type) {
+        if (!gameState.soundOn) return;
+        this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        const now = this.ctx.currentTime;
+        if (type === 'click') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'correct') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, now);
+            osc.frequency.setValueAtTime(600, now + 0.1);
+            osc.frequency.setValueAtTime(1000, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'wrong') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'lose') {
+             osc.type = 'square';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 1);
+            gain.gain.setValueAtTime(0.3, now);
+            gain.gain.linearRampToValueAtTime(0, now + 1);
+            osc.start(now); osc.stop(now + 1);
+        }
+    }
+};
+
+function toggleSound() {
+    gameState.soundOn = !gameState.soundOn;
+    document.getElementById('btn-sound').innerText = gameState.soundOn ? '🔊' : '🔇';
+    if(gameState.soundOn) AudioSys.play('click');
+}
+
+/* ==========================================
+   3. VISUAL & CANVAS BACKGROUND (Stars)
+   ========================================== */
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let stars = [];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+
+function initStars() {
+    resizeCanvas();
+    stars = [];
+    for(let i=0; i<200; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.5,
+            s: Math.random() * 0.5 + 0.1
+        });
+    }
+    animateStars();
+}
+function animateStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    stars.forEach(star => {
+        ctx.globalAlpha = Math.random() * 0.5 + 0.5; // Twinkle
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+        star.y += star.s;
+        if(star.y > canvas.height) {
+            star.y = 0;
+            star.x = Math.random() * canvas.width;
+        }
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(animateStars);
+}
+
+/* ==========================================
+   4. CORE LOGIC
+   ========================================== */
+function showModal(title, desc) {
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-desc').innerText = desc;
+    const modal = document.getElementById('custom-modal');
+    modal.classList.add('active');
+    document.getElementById('modal-btn').onclick = () => {
+        AudioSys.play('click');
+        modal.classList.remove('active');
+    };
+}
+
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+}
+
+function updateUI() {
+    // Top bar map
+    document.getElementById('ui-nama').innerText = player.nama;
+    document.getElementById('ui-absen').innerText = "Absen: " + player.absen;
+    document.getElementById('ui-skor-map').innerText = player.skor;
+    document.getElementById('ui-nyawa-map').innerText = '❤️'.repeat(Math.max(0, player.nyawa)) + '🖤'.repeat(3 - Math.max(0, player.nyawa));
+    
+    // Top bar game
+    document.getElementById('ui-skor-game').innerText = player.skor;
+    document.getElementById('ui-nyawa-game').innerText = '❤️'.repeat(Math.max(0, player.nyawa)) + '🖤'.repeat(3 - Math.max(0, player.nyawa));
+}
+
+function startGame() {
+    AudioSys.play('click');
+    const nama = document.getElementById('input-nama').value.trim();
+    const absen = document.getElementById('input-absen').value.trim();
+
+    if(!nama || !absen) {
+        showModal("Peringatan", "Harap isi Nama dan Nomor Absen sebelum memulai!");
+        return;
+    }
+
+    player.nama = nama;
+    player.absen = absen;
+    
+    // Cek localStorage jika ingin melanjutkan
+    const saved = localStorage.getItem('ratioGameSave');
+    if(saved) {
+        const parsed = JSON.parse(saved);
+        if(parsed.nama === nama && parsed.absen === absen && parsed.nyawa > 0) {
+            player = parsed;
+        } else {
+            resetGame(false);
+            player.nama = nama; player.absen = absen;
+        }
+    } else {
+        resetGame(false);
+        player.nama = nama; player.absen = absen;
+    }
+
+    saveProgress();
+    renderMap();
+    updateUI();
+    showScreen('screen-map');
+}
+
+function resetGame(fullReset = true) {
+    if(fullReset) {
+        document.getElementById('input-nama').value = '';
+        document.getElementById('input-absen').value = '';
+        showScreen('screen-login');
+    }
+    player.skor = 0;
+    player.nyawa = 3;
+    player.levelUnlocked = 1;
+    player.combo = 0;
+    player.benar = 0;
+    player.salah = 0;
+    player.riwayat = [];
+    localStorage.removeItem('ratioGameSave');
+}
+
+function saveProgress() {
+    localStorage.setItem('ratioGameSave', JSON.stringify(player));
+}
+
+/* ==========================================
+   5. MAP / LEVEL SELECTION
+   ========================================== */
+function renderMap() {
+    const container = document.getElementById('planet-container');
+    container.innerHTML = '';
+    
+    planets.forEach(p => {
+        const isUnlocked = p.id <= player.levelUnlocked;
+        const isCompleted = p.id < player.levelUnlocked;
+        
+        let statusIcon = isUnlocked ? (isCompleted ? '✅' : '🔓') : '🔒';
+        let opClass = isUnlocked ? 'opacity-100 hover:scale-110 cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'opacity-50 grayscale cursor-not-allowed';
+        
+        const card = document.createElement('div');
+        card.className = `glass-panel p-4 flex flex-col items-center justify-center w-40 h-48 transition-all duration-300 transform bg-gradient-to-b ${isUnlocked ? p.color : 'from-gray-700 to-gray-900'} ${opClass}`;
+        
+        card.innerHTML = `
+            <div class="text-5xl mb-2 animate-float">${p.icon}</div>
+            <div class="text-sm font-bold font-space text-center text-white min-h-[40px]">${p.name}</div>
+            <div class="mt-2 text-xl">${statusIcon}</div>
+        `;
+
+        if(isUnlocked) {
+            card.onclick = () => startLevel(p.id);
+        } else {
+            card.onclick = () => showModal("Terkunci", "Selesaikan planet sebelumnya untuk membuka planet ini!");
+        }
+        
+        container.appendChild(card);
+    });
+}
+
+/* ==========================================
+   6. GAMEPLAY LOGIC
+   ========================================== */
+function startLevel(levelId) {
+    AudioSys.play('click');
+    gameState.currentLevel = levelId;
+    gameState.currentQuestion = 0;
+    
+    // Setup Boss UI
+    if(levelId === 5) {
+        document.getElementById('boss-ui').classList.remove('hidden');
+        updateBossHP();
+    } else {
+        document.getElementById('boss-ui').classList.add('hidden');
+    }
+
+    updateUI();
+    showScreen('screen-game');
+    loadQuestion();
+}
+
+function updateBossHP() {
+    const totalQ = questionBank[5].length;
+    const hp = 100 - (gameState.currentQuestion / totalQ * 100);
+    document.getElementById('boss-hp-bar').style.width = hp + '%';
+    document.getElementById('boss-hp-text').innerText = `HP: ${Math.round(hp)}%`;
+}
+
+function loadQuestion() {
+    if (gameState.currentQuestion >= questionBank[gameState.currentLevel].length) {
+        levelComplete();
+        return;
+    }
+
+    gameState.isAnswering = false;
+    const qData = questionBank[gameState.currentLevel][gameState.currentQuestion];
+    
+    // Update Title
+    const planetName = planets.find(p=>p.id === gameState.currentLevel).name;
+    document.getElementById('level-title').innerText = `PLANET ${gameState.currentLevel}: ${planetName.toUpperCase()} (Soal ${gameState.currentQuestion + 1}/${questionBank[gameState.currentLevel].length})`;
+    
+    // Render Text
+    document.getElementById('question-text').innerHTML = qData.q;
+    
+    // Render Answer Area
+    const area = document.getElementById('answer-area');
+    area.innerHTML = '';
+
+    if (qData.type === 'mc') {
+        const grid = document.createElement('div');
+        grid.className = "grid grid-cols-1 md:grid-cols-2 gap-4";
+        
+        // Shuffle options
+        let opts = [...qData.options];
+        opts.sort(() => Math.random() - 0.5);
+
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = "p-4 glass hover:bg-white/20 text-white font-semibold rounded-xl border border-cyan-500/50 transition transform hover:scale-105";
+            btn.innerText = opt;
+            btn.onclick = () => submitAnswer(opt, qData.answer, btn);
+            grid.appendChild(btn);
+        });
+        area.appendChild(grid);
+    } else if (qData.type === 'input') {
+        const form = document.createElement('div');
+        form.className = "flex flex-col items-center gap-4 w-full";
+        form.innerHTML = `
+            <input type="text" id="ans-input" class="w-full max-w-md p-4 text-2xl text-center rounded-xl bg-white/10 border-2 border-cyan-400 text-white focus:outline-none focus:border-yellow-400" placeholder="Ketik jawabanmu di sini..." autocomplete="off">
+            <button id="ans-submit" class="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold rounded-xl shadow-lg transition transform hover:scale-105">JAWAB</button>
+        `;
+        area.appendChild(form);
+        
+        const inp = document.getElementById('ans-input');
+        const btn = document.getElementById('ans-submit');
+        inp.focus();
+        inp.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') btn.click();
+        });
+        btn.onclick = () => submitAnswer(inp.value, qData.expected, inp);
+    }
+
+    startTimer();
+}
+
+function startTimer() {
+    clearInterval(gameState.timerInterval);
+    gameState.timer = MAX_WAKTU;
+    updateTimerVisual();
+
+    gameState.timerInterval = setInterval(() => {
+        if(gameState.isAnswering) return;
+        gameState.timer--;
+        updateTimerVisual();
+
+        if (gameState.timer <= 0) {
+            clearInterval(gameState.timerInterval);
+            handleWrongTimeOut("waktu_habis");
+        }
+    }, 1000);
+}
+
+function updateTimerVisual() {
+    const bar = document.getElementById('timer-bar');
+    const pct = (gameState.timer / MAX_WAKTU) * 100;
+    bar.style.width = pct + '%';
+    
+    if(pct > 50) bar.className = "h-full w-full transition-all duration-1000 linear bg-green-400";
+    else if(pct > 20) bar.className = "h-full w-full transition-all duration-1000 linear bg-yellow-400";
+    else bar.className = "h-full w-full transition-all duration-1000 linear bg-red-500 animate-pulse";
+}
+
+/* SMART EVALUATION LOGIC */
+function evalPintar(inputStr, expectedStr) {
+    if(!inputStr) return false;
+    inputStr = String(inputStr).toLowerCase().replace(/\s+/g,'');
+    expectedStr = String(expectedStr).toLowerCase().replace(/\s+/g,'');
+    
+    // Direct match
+    if(inputStr === expectedStr) return true;
+
+    // Math parsing untuk rasio e.g., 4:6 == 2:3 == 2/3
+    const parseMath = (str) => {
+        let parts = str.split(/[:/]/);
+        if(parts.length === 2) {
+            let num = parseFloat(parts[0]);
+            let den = parseFloat(parts[1]);
+            if(!isNaN(num) && !isNaN(den) && den !== 0) return num/den;
+        }
+        return parseFloat(str); // jika hanya angka bulat
+    };
+
+    let valIn = parseMath(inputStr);
+    let valEx = parseMath(expectedStr);
+
+    if(!isNaN(valIn) && !isNaN(valEx) && Math.abs(valIn - valEx) < 0.001) {
+        return true;
+    }
+    
+    return false;
+}
+
+function submitAnswer(userAnswer, expected, elementUI) {
+    if(gameState.isAnswering) return;
+    gameState.isAnswering = true;
+    clearInterval(gameState.timerInterval);
+
+    const qData = questionBank[gameState.currentLevel][gameState.currentQuestion];
+    
+    // Pengecekan
+    let isCorrect = false;
+    if(qData.type === 'mc') {
+        isCorrect = (userAnswer === expected);
+    } else {
+        isCorrect = evalPintar(userAnswer, expected);
+    }
+
+    // Feedback Visual
+    if(isCorrect) {
+        if(elementUI.tagName === 'BUTTON') elementUI.classList.add('bg-green-500', 'border-green-400', 'shadow-[0_0_15px_rgba(0,255,0,0.5)]');
+        else if(elementUI.tagName === 'INPUT') elementUI.classList.add('bg-green-500/30', 'border-green-400');
+        
+        AudioSys.play('correct');
+        handleCorrect();
+    } else {
+        if(elementUI.tagName === 'BUTTON') elementUI.classList.add('bg-red-500', 'border-red-400');
+        else if(elementUI.tagName === 'INPUT') elementUI.classList.add('bg-red-500/30', 'border-red-400');
+        
+        document.getElementById('question-text').classList.add('shake');
+        setTimeout(() => document.getElementById('question-text').classList.remove('shake'), 400);
+        
+        AudioSys.play('wrong');
+        handleWrongTimeOut("salah");
+    }
+
+    // Catat Riwayat untuk PDF
+    player.riwayat.push({
+        lvl: gameState.currentLevel,
+        soal: qData.q,
+        jawaban_siswa: userAnswer || "-",
+        kunci: expected,
+        status: isCorrect ? "Benar" : "Salah"
+    });
+
+    // Next question delay
+    setTimeout(() => {
+        gameState.currentQuestion++;
+        if(gameState.currentLevel === 5) updateBossHP();
+        
+        if(player.nyawa <= 0) {
+            gameOver();
+        } else {
+            loadQuestion();
+        }
+    }, 1500);
+}
+
+function handleCorrect() {
+    player.benar++;
+    player.combo++;
+    let bonusWaktu = Math.floor(gameState.timer * 1.5);
+    let skorDidapat = SKOR_BENAR + bonusWaktu;
+    
+    // Combo multiplier
+    if(player.combo >= 5) skorDidapat = Math.floor(skorDidapat * 1.5);
+    else if(player.combo >= 3) skorDidapat = Math.floor(skorDidapat * 1.2);
+    
+    player.skor += skorDidapat;
+    
+    // Animasi Combo
+    if(player.combo >= 2) {
+        const comboEl = document.getElementById('combo-display');
+        comboEl.innerText = `🔥x${player.combo}`;
+        comboEl.classList.remove('hidden');
+        comboEl.classList.add('combo-text');
+        setTimeout(() => comboEl.classList.add('hidden'), 2000);
+    }
+    
+    updateUI();
+}
+
+function handleWrongTimeOut(tipe) {
+    player.salah++;
+    player.combo = 0;
+    player.nyawa--;
+    
+    const comboEl = document.getElementById('combo-display');
+    comboEl.classList.add('hidden');
+
+    if(tipe === "waktu_habis") {
+        document.getElementById('question-text').innerHTML = "<span class='text-red-400'>WAKTU HABIS! ⏱️</span>";
+        AudioSys.play('wrong');
+        
+        const qData = questionBank[gameState.currentLevel][gameState.currentQuestion];
+        player.riwayat.push({
+            lvl: gameState.currentLevel,
+            soal: qData.q,
+            jawaban_siswa: "Waktu Habis",
+            kunci: (qData.type==='mc') ? qData.answer : qData.expected,
+            status: "Salah"
+        });
+
+        setTimeout(() => {
+            gameState.currentQuestion++;
+            if(player.nyawa <= 0) gameOver();
+            else loadQuestion();
+        }, 1500);
+    }
+    updateUI();
+}
+
+function goHome() {
+    AudioSys.play('click');
+    clearInterval(gameState.timerInterval);
+    saveProgress();
+    renderMap();
+    updateUI();
+    showScreen('screen-map');
+}
+
+function levelComplete() {
+    AudioSys.play('correct'); // Fanfare (simplified)
+    if (gameState.currentLevel >= player.levelUnlocked && gameState.currentLevel < 5) {
+        player.levelUnlocked = gameState.currentLevel + 1;
+    }
+    saveProgress();
+    
+    if(gameState.currentLevel === 5) {
+        // Tamat
+        showResult();
+    } else {
+        showModal(`Planet ${gameState.currentLevel} Selesai!`, "Kerja bagus! Kamu membuka planet berikutnya.");
+        renderMap();
+        updateUI();
+        showScreen('screen-map');
+    }
+}
+
+function gameOver() {
+    AudioSys.play('lose');
+    saveProgress();
+    showResult();
+}
+
+/* ==========================================
+   7. RESULT & EXPORT PDF
+   ========================================== */
+function showResult() {
+    clearInterval(gameState.timerInterval);
+    showScreen('screen-result');
+    
+    const totalSoal = player.benar + player.salah;
+    const akurasi = totalSoal === 0 ? 0 : Math.round((player.benar / totalSoal) * 100);
+    
+    let predikat = "KADET PEMULA";
+    if (player.levelUnlocked > 4 && akurasi >= 80) predikat = "🏆 GALAXY MASTER";
+    else if (player.levelUnlocked > 3) predikat = "🌟 SPACE HERO";
+    else if (player.levelUnlocked > 1) predikat = "🚀 ASTRONOT TANGGUH";
+
+    document.getElementById('result-predikat').innerText = predikat;
+    document.getElementById('res-nama').innerText = player.nama;
+    document.getElementById('res-absen').innerText = player.absen;
+    document.getElementById('res-skor').innerText = player.skor;
+    document.getElementById('res-akurasi').innerText = akurasi + "%";
+    document.getElementById('res-benar').innerText = player.benar;
+    document.getElementById('res-salah').innerText = player.salah;
+}
+
+function exportPDF() {
+    AudioSys.play('click');
+    const loading = document.getElementById('pdf-loading');
+    loading.classList.remove('hidden');
+
+    // Gunakan jsPDF
+    setTimeout(() => {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(18);
+            doc.text("RAPOR FRACTION SPACE ADVENTURE", 105, 20, null, null, "center");
+            
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Nama: ${player.nama}`, 20, 40);
+            doc.text(`Absen: ${player.absen}`, 20, 50);
+            doc.text(`Total Skor: ${player.skor}`, 120, 40);
+            doc.text(`Akurasi: ${Math.round((player.benar/(player.benar+player.salah))*100)}%`, 120, 50);
+            
+            doc.line(20, 55, 190, 55);
+
+            // Table Header
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("No", 20, 65);
+            doc.text("Level", 30, 65);
+            doc.text("Jawaban Siswa", 60, 65);
+            doc.text("Kunci Jawaban", 120, 65);
+            doc.text("Status", 170, 65);
+            doc.line(20, 68, 190, 68);
+
+            doc.setFont("helvetica", "normal");
+            let y = 75;
+            player.riwayat.forEach((item, i) => {
+                if (y > 270) { doc.addPage(); y = 20; }
+                
+                let jwbSiswa = String(item.jawaban_siswa).substring(0, 25);
+                let kunci = String(item.kunci).substring(0, 25);
+                
+                doc.text(String(i+1), 20, y);
+                doc.text(String(item.lvl), 30, y);
+                doc.text(jwbSiswa, 60, y);
+                doc.text(kunci, 120, y);
+                
+                if(item.status === "Benar") doc.setTextColor(0, 128, 0);
+                else doc.setTextColor(255, 0, 0);
+                
+                doc.text(item.status, 170, y);
+                doc.setTextColor(0, 0, 0);
+                
+                y += 8;
+            });
+            
+            // Footer/Kesimpulan
+            y += 10;
+            if(y > 270) { doc.addPage(); y = 20; }
+            doc.setFont("helvetica", "italic");
+            doc.text("Terus semangat belajar Matematika! Rasio itu menyenangkan.", 105, y, null, null, "center");
+
+            doc.save(`Rapor_Rasio_${player.nama.replace(/\s+/g, '_')}.pdf`);
+            loading.classList.add('hidden');
+            
+        } catch (e) {
+            console.error("PDF generation failed, falling back to print", e);
+            loading.classList.add('hidden');
+            // Fallback cetak halaman web
+            const style = document.createElement('style');
+            style.innerHTML = `@media print { body * { visibility: hidden; } #screen-result * { visibility: visible; } #screen-result { position: absolute; left: 0; top: 0; width: 100%; color: black !important; background: white !important;} .glass-panel { background: white !important; box-shadow: none !important;} button { display: none !important; } }`;
+            document.head.appendChild(style);
+            window.print();
+            document.head.removeChild(style);
+        }
+    }, 500);
+}
+
+function showHelp() {
+    showModal("Cara Bermain", "1. Jawab soal Rasio sebelum waktu habis.\n2. Tulis rasio dengan tanda ':' atau '/' atau angka biasa.\n3. Jangan sampai nyawamu (❤️) habis!\n4. Jawab berturut-turut untuk combo skor!");
+}
+
+/* ==========================================
+   8. INIT
+   ========================================== */
+window.onload = () => {
+    initStars();
+};
+</script>
+</body>
+</html>
