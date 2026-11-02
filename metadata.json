@@ -1,0 +1,6 @@
+{
+  "name": "COIN QUEST 3D — Petualangan Edukasi Bahasa Indonesia",
+  "description": "Game platformer edukasi 3D voxel pixel art Bahasa Indonesia SD Kelas 6 Fase C: Cerita Rakyat, Nilai Moral, dan Makna Kata.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
